@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+*.egg
+
+# Node
+node_modules/
+dist/
+build/
+
+# Uploads & submissions (runtime data)
+app/data/uploads/
+app/data/submissions/
+uploads/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug files
+debug_*.png
+test_output*.txt
+test_aadhaar_output.txt
+
+# Audio test files
+*.m4a
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+npm-debug.log*
