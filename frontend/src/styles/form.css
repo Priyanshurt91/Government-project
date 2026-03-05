@@ -172,8 +172,9 @@
 
 .mf-field {
   width: 100%;
-  padding: 12px 28px;
+  padding: 10px 28px;
   border-bottom: 1px solid #f1f5f9;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .mf-field:last-child {
@@ -188,34 +189,112 @@
   border-right: 1px solid #f1f5f9;
 }
 
+/* Field header: label + edit button */
+.mf-field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
 .mf-label {
-  display: block;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 4px;
 }
 
+/* ── Edit / Save buttons ── */
+.mf-edit-btn,
+.mf-save-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.15s;
+  line-height: 1;
+}
+
+.mf-edit-btn {
+  opacity: 0.35;
+  transition: opacity 0.15s;
+}
+
+.mf-field:hover .mf-edit-btn {
+  opacity: 1;
+}
+
+.mf-edit-btn:hover {
+  background: #f1f5f9;
+}
+
+.mf-save-btn {
+  opacity: 1;
+}
+
+.mf-save-btn:hover {
+  background: #ecfdf5;
+}
+
+/* ── Display value (read-only text) ── */
+.mf-display-value {
+  font-size: 15px;
+  font-weight: 500;
+  color: #0f172a;
+  padding: 5px 0;
+  min-height: 28px;
+  cursor: pointer;
+  border-bottom: 1.5px solid transparent;
+  transition: border-color 0.15s;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+
+.mf-display-value:hover {
+  border-bottom-color: #e2e8f0;
+}
+
+.mf-display-value.mf-empty {
+  color: #cbd5e1;
+  font-style: italic;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+/* ── Input (edit mode) ── */
 .mf-input {
   width: 100%;
-  padding: 6px 0;
+  padding: 5px 0;
   font-size: 15px;
   font-weight: 500;
   color: #0f172a;
   border: none;
-  border-bottom: 1.5px solid #cbd5e1;
+  border-bottom: 2px solid #2563eb;
   background: transparent;
   outline: none;
   font-family: 'Inter', 'Segoe UI', sans-serif;
   transition: border-color 0.2s;
   border-radius: 0;
   -webkit-appearance: none;
+  appearance: none;
 }
 
-.mf-input:focus {
+.mf-input-editing {
+  background: #f8faff;
   border-bottom-color: #2563eb;
+  animation: editPulse 0.3s ease;
+}
+
+@keyframes editPulse {
+  0% {
+    background: #eef2ff;
+  }
+
+  100% {
+    background: #f8faff;
+  }
 }
 
 .mf-input::placeholder {
@@ -382,6 +461,17 @@ select.mf-input {
 
 .pdf-capture .screen-only-element {
   display: none !important;
+}
+
+.pdf-capture .mf-edit-btn,
+.pdf-capture .mf-save-btn {
+  display: none !important;
+}
+
+.pdf-capture .mf-display-value {
+  cursor: default;
+  color: #000 !important;
+  border-bottom-color: transparent !important;
 }
 
 .pdf-capture .mf-header {

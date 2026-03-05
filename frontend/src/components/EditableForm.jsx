@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import "../styles/form.css";
 
 export default function EditableForm({ data, serviceId }) {
-  const [previewMode, setPreviewMode] = useState(false);
   const [generating, setGenerating] = useState(false);
+  // Track which field is currently being edited (null = none)
+  const [editingField, setEditingField] = useState(null);
+  const inputRef = useRef(null);
 
   const serviceNames = {
     service_001: "Birth Certificate",
@@ -44,37 +46,53 @@ export default function EditableForm({ data, serviceId }) {
     }
   }, [data]);
 
+  // Auto-focus input when a field enters edit mode
+  useEffect(() => {
+    if (editingField && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [editingField]);
+
   const handleChange = (field, value) => {
     setFormData((p) => ({ ...p, [field]: value }));
   };
 
+  const handleEditClick = (field) => {
+    setEditingField(field);
+  };
+
+  const handleSaveField = () => {
+    setEditingField(null);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      handleSaveField();
+    }
+    if (e.key === "Escape") {
+      setEditingField(null);
+    }
+  };
+
   const today = new Date();
-  const formNumber = `SFAI-${today.getFullYear()}-${String(Math.floor(Math.random() * 99999)).padStart(5, "0")}`;
+  const [formNumber] = useState(
+    `SFAI-${today.getFullYear()}-${String(Math.floor(Math.random() * 99999)).padStart(5, "0")}`
+  );
   const formDate = today.toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
     year: "numeric",
   });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!previewMode) {
-      setPreviewMode(true);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
-
+  const handleDownloadPDF = async () => {
     const element = document.getElementById("govt-form-printable");
     if (!element) return;
 
     try {
       setGenerating(true);
+      setEditingField(null); // Close any editing
 
-      // Add PDF class for clean rendering
       element.classList.add("pdf-capture");
-
-      // Wait for styles to apply
       await new Promise((r) => setTimeout(r, 400));
 
       const canvas = await html2canvas(element, {
@@ -90,15 +108,20 @@ export default function EditableForm({ data, serviceId }) {
           if (el) {
             el.style.padding = "32px";
             el.style.width = "800px";
-            // Hide buttons in clone
-            const btns = el.querySelectorAll(".form-actions, .screen-only-element");
-            btns.forEach((b) => (b.style.display = "none"));
-            // Make all text black
+            // Hide edit buttons and screen-only elements
+            el.querySelectorAll(".mf-edit-btn, .mf-save-btn, .form-actions, .screen-only-element").forEach(
+              (b) => (b.style.display = "none")
+            );
+            // Make all text black and inputs look like printed text
             el.querySelectorAll("input, select, textarea").forEach((inp) => {
               inp.style.color = "#000";
               inp.style.borderColor = "#999";
               inp.style.background = "transparent";
               inp.style.WebkitTextFillColor = "#000";
+            });
+            // Show values as plain text
+            el.querySelectorAll(".mf-display-value").forEach((v) => {
+              v.style.color = "#000";
             });
           }
         },
@@ -109,7 +132,6 @@ export default function EditableForm({ data, serviceId }) {
       const pageW = 210;
       const pageH = 297;
       const m = 6;
-
       const imgW = pageW - m * 2;
       const imgH = (canvas.height * imgW) / canvas.width;
 
@@ -127,7 +149,6 @@ export default function EditableForm({ data, serviceId }) {
       }
 
       pdf.save(`${serviceName.replace(/\s+/g, "_")}_Application_${formNumber}.pdf`);
-
       element.classList.remove("pdf-capture");
       setGenerating(false);
     } catch (err) {
@@ -138,43 +159,80 @@ export default function EditableForm({ data, serviceId }) {
     }
   };
 
+  // ═══ Per-field component ═══
   const Field = ({ label, field, half, type = "text", placeholder = "", choices }) => {
-    if (type === "select") {
-      return (
-        <div className={`mf-field ${half ? "mf-half" : ""}`}>
-          <label className="mf-label">{label}</label>
-          <select
-            className="mf-input"
-            value={formData[field] || ""}
-            onChange={(e) => handleChange(field, e.target.value)}
-            disabled={previewMode}
-          >
-            <option value="">Select</option>
-            {choices?.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </div>
-      );
-    }
+    const isEditing = editingField === field;
+    const value = formData[field] || "";
+    const hasValue = value.length > 0;
+
     return (
       <div className={`mf-field ${half ? "mf-half" : ""}`}>
-        <label className="mf-label">{label}</label>
-        <input
-          type={type}
-          className="mf-input"
-          value={formData[field] || ""}
-          onChange={(e) => handleChange(field, e.target.value)}
-          readOnly={previewMode}
-          placeholder={placeholder}
-        />
+        <div className="mf-field-header">
+          <label className="mf-label">{label}</label>
+          {!isEditing ? (
+            <button
+              className="mf-edit-btn"
+              onClick={() => handleEditClick(field)}
+              title={`Edit ${label}`}
+              type="button"
+            >
+              ✏️
+            </button>
+          ) : (
+            <button
+              className="mf-save-btn"
+              onClick={handleSaveField}
+              title="Save"
+              type="button"
+            >
+              ✅
+            </button>
+          )}
+        </div>
+
+        {isEditing ? (
+          // ── EDIT MODE ──
+          type === "select" ? (
+            <select
+              ref={inputRef}
+              className="mf-input mf-input-editing"
+              value={value}
+              onChange={(e) => handleChange(field, e.target.value)}
+              onBlur={handleSaveField}
+            >
+              <option value="">— Select —</option>
+              {choices?.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              ref={inputRef}
+              type={type}
+              className="mf-input mf-input-editing"
+              value={value}
+              onChange={(e) => handleChange(field, e.target.value)}
+              onKeyDown={handleKeyDown}
+              onBlur={handleSaveField}
+              placeholder={placeholder}
+            />
+          )
+        ) : (
+          // ── DISPLAY MODE ──
+          <div
+            className={`mf-display-value ${hasValue ? "" : "mf-empty"}`}
+            onClick={() => handleEditClick(field)}
+          >
+            {hasValue ? value : placeholder || "—"}
+          </div>
+        )}
       </div>
     );
   };
 
   return (
     <div className="mf-wrapper">
-      <div id="govt-form-printable" className={`mf-container ${previewMode ? "mf-preview" : ""}`}>
+      <div id="govt-form-printable" className="mf-container">
 
         {/* ═══ Header ═══ */}
         <div className="mf-header">
@@ -209,9 +267,9 @@ export default function EditableForm({ data, serviceId }) {
           </div>
         </div>
 
-        {/* ═══ Screen title ═══ */}
+        {/* ═══ Screen banner ═══ */}
         <div className="screen-only-element mf-screen-banner">
-          {previewMode ? "📋 Review your details — then download PDF" : "✏️ Edit any auto-filled fields below"}
+          Click ✏️ on any field to edit it individually
         </div>
 
         {/* ═══ Section 1: Personal ═══ */}
@@ -299,26 +357,15 @@ export default function EditableForm({ data, serviceId }) {
         </div>
       </div>
 
-      {/* ═══ Actions (outside printable area) ═══ */}
+      {/* ═══ Actions ═══ */}
       <div className="form-actions">
-        {!previewMode ? (
-          <button className="mf-btn mf-btn-primary" onClick={handleSubmit}>
-            Preview Application →
-          </button>
-        ) : (
-          <div className="mf-btn-group">
-            <button className="mf-btn mf-btn-secondary" onClick={() => setPreviewMode(false)}>
-              ← Edit Form
-            </button>
-            <button
-              className="mf-btn mf-btn-primary"
-              onClick={handleSubmit}
-              disabled={generating}
-            >
-              {generating ? "Generating PDF..." : "📥 Download PDF"}
-            </button>
-          </div>
-        )}
+        <button
+          className="mf-btn mf-btn-primary"
+          onClick={handleDownloadPDF}
+          disabled={generating}
+        >
+          {generating ? "⏳ Generating PDF..." : "📥 Download Application PDF"}
+        </button>
       </div>
     </div>
   );
