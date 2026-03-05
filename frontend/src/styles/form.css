@@ -41,6 +41,14 @@
   flex-shrink: 0;
 }
 
+.mf-emblem-img {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+  opacity: 0.92;
+}
+
 .mf-header-text {
   flex: 1;
 }
@@ -380,6 +388,10 @@ select.mf-input {
   background: #1e3a5f !important;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
+}
+
+.pdf-capture .mf-emblem-img {
+  filter: brightness(0) invert(1) !important;
 }
 
 .pdf-capture .mf-section-num {

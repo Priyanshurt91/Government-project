@@ -180,12 +180,12 @@ export default function EditableForm({ data, serviceId }) {
         <div className="mf-header">
           <div className="mf-header-top">
             <div className="mf-emblem">
-              <svg width="44" height="44" viewBox="0 0 100 100" fill="none">
-                <circle cx="50" cy="50" r="48" stroke="#1e3a5f" strokeWidth="3" fill="#f0f4f8" />
-                <text x="50" y="38" textAnchor="middle" fontSize="14" fill="#1e3a5f" fontWeight="700">भारत</text>
-                <text x="50" y="55" textAnchor="middle" fontSize="10" fill="#1e3a5f" fontWeight="600">INDIA</text>
-                <text x="50" y="70" textAnchor="middle" fontSize="24" fill="#1e3a5f">🏛</text>
-              </svg>
+              <img
+                src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg"
+                alt="National Emblem of India"
+                className="mf-emblem-img"
+                crossOrigin="anonymous"
+              />
             </div>
             <div className="mf-header-text">
               <h1 className="mf-header-title">Government of India</h1>
