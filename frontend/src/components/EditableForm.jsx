@@ -5,6 +5,7 @@ import "../styles/form.css";
 
 export default function EditableForm({ data, serviceId }) {
   const [previewMode, setPreviewMode] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   const serviceNames = {
     service_001: "Birth Certificate",
@@ -48,10 +49,10 @@ export default function EditableForm({ data, serviceId }) {
   };
 
   const today = new Date();
-  const formNumber = `SFAI/${serviceId?.toUpperCase() || "GEN"}/${today.getFullYear()}/${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`;
+  const formNumber = `SFAI-${today.getFullYear()}-${String(Math.floor(Math.random() * 99999)).padStart(5, "0")}`;
   const formDate = today.toLocaleDateString("en-IN", {
     day: "2-digit",
-    month: "2-digit",
+    month: "short",
     year: "numeric",
   });
 
@@ -60,111 +61,110 @@ export default function EditableForm({ data, serviceId }) {
 
     if (!previewMode) {
       setPreviewMode(true);
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
-    const element = document.querySelector(".editable-form-container");
+    const element = document.getElementById("govt-form-printable");
     if (!element) return;
 
     try {
-      const btn = e.target;
-      const oldText = btn.textContent;
-      btn.textContent = "⏳ Generating PDF...";
-      btn.disabled = true;
+      setGenerating(true);
 
-      element.classList.add("pdf-mode");
+      // Add PDF class for clean rendering
+      element.classList.add("pdf-capture");
 
-      const style = document.createElement("style");
-      style.innerHTML = `
-        .pdf-mode button, .pdf-mode .form-submit-section,
-        .pdf-mode .preview-actions, .pdf-mode nav,
-        .pdf-mode header, .pdf-mode .screen-only {
-          display: none !important;
-        }
-        .pdf-mode ::placeholder {
-          color: transparent !important;
-          opacity: 0 !important;
-        }
-      `;
-      document.head.appendChild(style);
-
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Wait for styles to apply
+      await new Promise((r) => setTimeout(r, 400));
 
       const canvas = await html2canvas(element, {
-        scale: 3,
+        scale: 2.5,
         useCORS: true,
         backgroundColor: "#ffffff",
-        scrollY: -window.scrollY,
-        windowWidth: 850,
+        scrollY: 0,
+        y: 0,
+        windowWidth: 800,
         logging: false,
+        onclone: (doc) => {
+          const el = doc.getElementById("govt-form-printable");
+          if (el) {
+            el.style.padding = "32px";
+            el.style.width = "800px";
+            // Hide buttons in clone
+            const btns = el.querySelectorAll(".form-actions, .screen-only-element");
+            btns.forEach((b) => (b.style.display = "none"));
+            // Make all text black
+            el.querySelectorAll("input, select, textarea").forEach((inp) => {
+              inp.style.color = "#000";
+              inp.style.borderColor = "#999";
+              inp.style.background = "transparent";
+              inp.style.WebkitTextFillColor = "#000";
+            });
+          }
+        },
       });
 
-      const imgData = canvas.toDataURL("image/jpeg", 1.0);
-
+      const imgData = canvas.toDataURL("image/jpeg", 0.95);
       const pdf = new jsPDF("p", "mm", "a4");
-      const pageWidth = 210;
-      const pageHeight = 297;
-      const margin = 8;
+      const pageW = 210;
+      const pageH = 297;
+      const m = 6;
 
-      const imgWidth = pageWidth - margin * 2;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const imgW = pageW - m * 2;
+      const imgH = (canvas.height * imgW) / canvas.width;
 
-      let heightLeft = imgHeight;
-      let position = margin;
+      let hLeft = imgH;
+      let pos = m;
 
-      pdf.addImage(imgData, "JPEG", margin, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight - margin * 2;
+      pdf.addImage(imgData, "JPEG", m, pos, imgW, imgH);
+      hLeft -= pageH - m * 2;
 
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight + margin;
+      while (hLeft > 0) {
+        pos = hLeft - imgH + m;
         pdf.addPage();
-        pdf.addImage(imgData, "JPEG", margin, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight - margin * 2;
+        pdf.addImage(imgData, "JPEG", m, pos, imgW, imgH);
+        hLeft -= pageH - m * 2;
       }
 
-      pdf.save(`GOI_${serviceName.replace(/\s+/g, "_")}_${Date.now()}.pdf`);
+      pdf.save(`${serviceName.replace(/\s+/g, "_")}_Application_${formNumber}.pdf`);
 
-      element.classList.remove("pdf-mode");
-      document.head.removeChild(style);
-      btn.textContent = oldText;
-      btn.disabled = false;
+      element.classList.remove("pdf-capture");
+      setGenerating(false);
     } catch (err) {
-      element.classList.remove("pdf-mode");
+      element?.classList.remove("pdf-capture");
+      setGenerating(false);
       console.error(err);
-      alert("PDF generation failed");
+      alert("PDF generation failed. Please try again.");
     }
   };
 
-  const renderField = (label, key, options = {}) => {
-    const { type = "text", half = false, placeholder = "" } = options;
-
+  const Field = ({ label, field, half, type = "text", placeholder = "", choices }) => {
     if (type === "select") {
       return (
-        <div className={`govt-field ${half ? "half" : ""}`} key={key}>
-          <label className="govt-field-label">{label}</label>
+        <div className={`mf-field ${half ? "mf-half" : ""}`}>
+          <label className="mf-label">{label}</label>
           <select
-            className="govt-field-input"
-            value={formData[key] || ""}
-            onChange={(e) => handleChange(key, e.target.value)}
+            className="mf-input"
+            value={formData[field] || ""}
+            onChange={(e) => handleChange(field, e.target.value)}
             disabled={previewMode}
           >
-            <option value="">— Select —</option>
-            {options.choices?.map((c) => (
+            <option value="">Select</option>
+            {choices?.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
         </div>
       );
     }
-
     return (
-      <div className={`govt-field ${half ? "half" : ""}`} key={key}>
-        <label className="govt-field-label">{label}</label>
+      <div className={`mf-field ${half ? "mf-half" : ""}`}>
+        <label className="mf-label">{label}</label>
         <input
           type={type}
-          className="govt-field-input"
-          value={formData[key] || ""}
-          onChange={(e) => handleChange(key, e.target.value)}
+          className="mf-input"
+          value={formData[field] || ""}
+          onChange={(e) => handleChange(field, e.target.value)}
           readOnly={previewMode}
           placeholder={placeholder}
         />
@@ -173,155 +173,152 @@ export default function EditableForm({ data, serviceId }) {
   };
 
   return (
-    <div className="editable-form-container">
-      <div className={`govt-form ${previewMode ? "preview-mode" : ""}`}>
+    <div className="mf-wrapper">
+      <div id="govt-form-printable" className={`mf-container ${previewMode ? "mf-preview" : ""}`}>
 
-        {/* ═══════════ OFFICIAL HEADER ═══════════ */}
-        <div className="govt-form-header">
-          <div className="govt-emblem">
-            {/* Ashoka Lion Capital — text emblem for PDF compatibility */}
-            <div className="emblem-icon">🏛️</div>
-            <div className="emblem-text-block">
-              <div className="emblem-hindi">भारत सरकार</div>
-              <div className="emblem-title">GOVERNMENT OF INDIA</div>
-              <div className="emblem-dept">MINISTRY OF ELECTRONICS & INFORMATION TECHNOLOGY</div>
-              <div className="emblem-subtitle">SEVA FORM AI — e-Application Portal</div>
+        {/* ═══ Header ═══ */}
+        <div className="mf-header">
+          <div className="mf-header-top">
+            <div className="mf-emblem">
+              <svg width="44" height="44" viewBox="0 0 100 100" fill="none">
+                <circle cx="50" cy="50" r="48" stroke="#1e3a5f" strokeWidth="3" fill="#f0f4f8" />
+                <text x="50" y="38" textAnchor="middle" fontSize="14" fill="#1e3a5f" fontWeight="700">भारत</text>
+                <text x="50" y="55" textAnchor="middle" fontSize="10" fill="#1e3a5f" fontWeight="600">INDIA</text>
+                <text x="50" y="70" textAnchor="middle" fontSize="24" fill="#1e3a5f">🏛</text>
+              </svg>
+            </div>
+            <div className="mf-header-text">
+              <h1 className="mf-header-title">Government of India</h1>
+              <p className="mf-header-ministry">Ministry of Electronics & Information Technology</p>
+              <p className="mf-header-portal">Seva Form AI — Digital Application Portal</p>
             </div>
           </div>
-
-          <div className="form-meta-strip">
-            <div className="form-meta-item">
-              <span className="meta-label">FORM TYPE</span>
-              <span className="meta-value">{serviceName}</span>
+          <div className="mf-header-bar">
+            <div className="mf-bar-item">
+              <span className="mf-bar-label">Service</span>
+              <span className="mf-bar-value">{serviceName}</span>
             </div>
-            <div className="form-meta-item">
-              <span className="meta-label">APPLICATION NO.</span>
-              <span className="meta-value">{formNumber}</span>
+            <div className="mf-bar-item">
+              <span className="mf-bar-label">Application No.</span>
+              <span className="mf-bar-value">{formNumber}</span>
             </div>
-            <div className="form-meta-item">
-              <span className="meta-label">DATE</span>
-              <span className="meta-value">{formDate}</span>
+            <div className="mf-bar-item">
+              <span className="mf-bar-label">Date</span>
+              <span className="mf-bar-value">{formDate}</span>
             </div>
           </div>
         </div>
 
-        {/* screen-only title */}
-        <h3 className="screen-only form-mode-title">
-          {previewMode ? "📋 Review & Download Application" : "✏️ Auto-Filled Application — Edit if needed"}
-        </h3>
+        {/* ═══ Screen title ═══ */}
+        <div className="screen-only-element mf-screen-banner">
+          {previewMode ? "📋 Review your details — then download PDF" : "✏️ Edit any auto-filled fields below"}
+        </div>
 
-        {/* ═══════════ SECTION 1: Personal Details ═══════════ */}
-        <div className="govt-section">
-          <div className="govt-section-header">
-            <span className="section-number">1</span>
-            <span className="section-title">PERSONAL DETAILS / व्यक्तिगत विवरण</span>
+        {/* ═══ Section 1: Personal ═══ */}
+        <div className="mf-section">
+          <div className="mf-section-title">
+            <span className="mf-section-num">01</span>
+            Personal Information
           </div>
-          <div className="govt-field-grid">
-            {renderField("Full Name (पूरा नाम)", "name", { placeholder: "As per Aadhaar" })}
-            {renderField("Date of Birth (जन्म तिथि)", "dob", { half: true, type: "text", placeholder: "DD/MM/YYYY" })}
-            {renderField("Gender (लिंग)", "gender", { half: true, type: "select", choices: ["Male", "Female", "Other"] })}
-            {renderField("Father's Name (पिता का नाम)", "father_name")}
-            {renderField("Mother's Name (माता का नाम)", "mother_name")}
-            {renderField("Marital Status (वैवाहिक स्थिति)", "marital_status", { half: true, type: "select", choices: ["Single", "Married", "Widowed", "Divorced"] })}
-            {renderField("Caste / Category (जाति / श्रेणी)", "caste", { half: true, placeholder: "SC / ST / OBC / General" })}
+          <div className="mf-fields-grid">
+            <Field label="Full Name" field="name" placeholder="As per Aadhaar card" />
+            <Field label="Date of Birth" field="dob" half placeholder="DD/MM/YYYY" />
+            <Field label="Gender" field="gender" half type="select" choices={["Male", "Female", "Other"]} />
+            <Field label="Father's Name" field="father_name" />
+            <Field label="Mother's Name" field="mother_name" />
+            <Field label="Marital Status" field="marital_status" half type="select" choices={["Single", "Married", "Widowed", "Divorced"]} />
+            <Field label="Caste / Category" field="caste" half placeholder="General, OBC, SC, ST" />
           </div>
         </div>
 
-        {/* ═══════════ SECTION 2: Identity Documents ═══════════ */}
-        <div className="govt-section">
-          <div className="govt-section-header">
-            <span className="section-number">2</span>
-            <span className="section-title">IDENTITY DOCUMENTS / पहचान दस्तावेज</span>
+        {/* ═══ Section 2: Identity ═══ */}
+        <div className="mf-section">
+          <div className="mf-section-title">
+            <span className="mf-section-num">02</span>
+            Identity & Contact
           </div>
-          <div className="govt-field-grid">
-            {renderField("Aadhaar Number (आधार संख्या)", "aadhaar", { half: true, placeholder: "XXXX XXXX XXXX" })}
-            {renderField("PAN Number (पैन संख्या)", "pan", { half: true, placeholder: "XXXXX0000X" })}
-            {renderField("Mobile Number (मोबाइल नंबर)", "mobile", { half: true, type: "tel", placeholder: "+91 XXXXXXXXXX" })}
-            {renderField("Email (ईमेल)", "email", { half: true, type: "email", placeholder: "example@mail.com" })}
-          </div>
-        </div>
-
-        {/* ═══════════ SECTION 3: Address Details ═══════════ */}
-        <div className="govt-section">
-          <div className="govt-section-header">
-            <span className="section-number">3</span>
-            <span className="section-title">ADDRESS DETAILS / पता विवरण</span>
-          </div>
-          <div className="govt-field-grid">
-            {renderField("Present Address (वर्तमान पता)", "address", { placeholder: "House No., Street, Locality" })}
-            {renderField("Village / Town / City (गाँव / नगर)", "village", { half: true })}
-            {renderField("Taluka / Tehsil (तालुका / तहसील)", "taluka", { half: true })}
-            {renderField("District (जिला)", "district", { half: true })}
-            {renderField("State (राज्य)", "state", { half: true })}
-            {renderField("PIN Code (पिन कोड)", "pincode", { half: true, placeholder: "6-digit PIN" })}
-            {renderField("Permanent Address (स्थायी पता)", "permanent_address", { placeholder: "Same as above if applicable" })}
+          <div className="mf-fields-grid">
+            <Field label="Aadhaar Number" field="aadhaar" half placeholder="XXXX XXXX XXXX" />
+            <Field label="PAN Number" field="pan" half placeholder="ABCDE1234F" />
+            <Field label="Mobile Number" field="mobile" half type="tel" placeholder="+91 XXXXXXXXXX" />
+            <Field label="Email Address" field="email" half type="email" placeholder="you@email.com" />
           </div>
         </div>
 
-        {/* ═══════════ SECTION 4: Declaration ═══════════ */}
-        <div className="govt-section declaration-section">
-          <div className="govt-section-header">
-            <span className="section-number">4</span>
-            <span className="section-title">DECLARATION / घोषणा</span>
+        {/* ═══ Section 3: Address ═══ */}
+        <div className="mf-section">
+          <div className="mf-section-title">
+            <span className="mf-section-num">03</span>
+            Address Details
           </div>
-          <div className="declaration-content">
+          <div className="mf-fields-grid">
+            <Field label="Present Address" field="address" placeholder="House No., Street, Locality" />
+            <Field label="Village / Town / City" field="village" half />
+            <Field label="Taluka / Tehsil" field="taluka" half />
+            <Field label="District" field="district" half />
+            <Field label="State" field="state" half />
+            <Field label="PIN Code" field="pincode" half placeholder="6-digit code" />
+            <Field label="Permanent Address" field="permanent_address" placeholder="If different from present address" />
+          </div>
+        </div>
+
+        {/* ═══ Section 4: Declaration ═══ */}
+        <div className="mf-section mf-declaration">
+          <div className="mf-section-title">
+            <span className="mf-section-num">04</span>
+            Declaration
+          </div>
+          <div className="mf-decl-body">
             <p>
-              I hereby declare that all the information furnished above is true, complete, and correct
-              to the best of my knowledge and belief. I understand that in the event of any information
-              being found false or incorrect, my application shall be liable for rejection and appropriate
-              action may be initiated against me as per the provisions of law.
+              I hereby declare that all the information provided above is true, complete and correct to the best
+              of my knowledge and belief. I understand that any false statement or suppression of material facts
+              may render my application liable for rejection and legal action as per the provisions of applicable law.
             </p>
-            <p className="declaration-hindi">
-              मैं एतद्द्वारा घोषणा करता/करती हूँ कि ऊपर दी गई समस्त जानकारी मेरी जानकारी और विश्वास
-              के अनुसार सत्य, पूर्ण और सही है।
-            </p>
-            <div className="signature-block">
-              <div className="sig-item">
-                <div className="sig-line"></div>
-                <span>Place / स्थान</span>
+            <div className="mf-sig-row">
+              <div className="mf-sig-item">
+                <div className="mf-sig-line"></div>
+                <span>Place</span>
               </div>
-              <div className="sig-item">
-                <div className="sig-line"></div>
-                <span>Date / दिनांक</span>
+              <div className="mf-sig-item">
+                <div className="mf-sig-line"></div>
+                <span>Date</span>
               </div>
-              <div className="sig-item">
-                <div className="sig-line"></div>
-                <span>Signature of Applicant / आवेदक के हस्ताक्षर</span>
+              <div className="mf-sig-item mf-sig-main">
+                <div className="mf-sig-line"></div>
+                <span>Signature of Applicant</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* ═══════════ FORM FOOTER ═══════════ */}
-        <div className="govt-form-footer">
-          <div className="footer-left">
-            <span>Ref: {formNumber}</span>
-          </div>
-          <div className="footer-center">
-            <span>This is a computer-generated document from the Seva Form AI Portal</span>
-          </div>
-          <div className="footer-right">
-            <span>Page 1 of 1</span>
-          </div>
+        {/* ═══ Footer ═══ */}
+        <div className="mf-footer">
+          <span>Ref: {formNumber}</span>
+          <span>Digitally generated via Seva Form AI</span>
+          <span>Page 1 of 1</span>
         </div>
+      </div>
 
-        {/* ═══════════ ACTIONS ═══════════ */}
-        <div className="form-submit-section">
-          {!previewMode ? (
-            <button className="btn-submit-form" onClick={handleSubmit}>
-              📋 Preview Application
+      {/* ═══ Actions (outside printable area) ═══ */}
+      <div className="form-actions">
+        {!previewMode ? (
+          <button className="mf-btn mf-btn-primary" onClick={handleSubmit}>
+            Preview Application →
+          </button>
+        ) : (
+          <div className="mf-btn-group">
+            <button className="mf-btn mf-btn-secondary" onClick={() => setPreviewMode(false)}>
+              ← Edit Form
             </button>
-          ) : (
-            <div className="preview-actions">
-              <button className="btn-edit" onClick={() => setPreviewMode(false)}>
-                ✏️ Edit Form
-              </button>
-              <button className="btn-confirm" onClick={handleSubmit}>
-                📥 Download PDF
-              </button>
-            </div>
-          )}
-        </div>
+            <button
+              className="mf-btn mf-btn-primary"
+              onClick={handleSubmit}
+              disabled={generating}
+            >
+              {generating ? "Generating PDF..." : "📥 Download PDF"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
