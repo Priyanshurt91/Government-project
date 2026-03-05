@@ -6,6 +6,16 @@ import "../styles/form.css";
 export default function EditableForm({ data, serviceId }) {
   const [previewMode, setPreviewMode] = useState(false);
 
+  const serviceNames = {
+    service_001: "Birth Certificate",
+    service_002: "Caste Certificate",
+    service_003: "Income Certificate",
+    service_004: "Residence Certificate",
+    service_005: "PM SVANidhi Yojana",
+  };
+
+  const serviceName = serviceNames[serviceId] || "General Application";
+
   const [formData, setFormData] = useState({
     name: "",
     dob: "",
@@ -17,12 +27,14 @@ export default function EditableForm({ data, serviceId }) {
     aadhaar: "",
     pan: "",
     mobile: "",
+    email: "",
     caste: "",
     marital_status: "",
     pincode: "",
     district: "",
     state: "",
     village: "",
+    taluka: "",
   });
 
   useEffect(() => {
@@ -34,6 +46,14 @@ export default function EditableForm({ data, serviceId }) {
   const handleChange = (field, value) => {
     setFormData((p) => ({ ...p, [field]: value }));
   };
+
+  const today = new Date();
+  const formNumber = `SFAI/${serviceId?.toUpperCase() || "GEN"}/${today.getFullYear()}/${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`;
+  const formDate = today.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -54,38 +74,14 @@ export default function EditableForm({ data, serviceId }) {
 
       element.classList.add("pdf-mode");
 
-      const style = document.createElement('style');
+      const style = document.createElement("style");
       style.innerHTML = `
-        * {
-          color: #000000 !important;
-          -webkit-text-fill-color: #000000 !important;
-          opacity: 1 !important;
-        }
-        /* Hide redundant page title and other non-form elements */
-        button, .form-submit-section, .preview-actions, nav, header, .form-title {
+        .pdf-mode button, .pdf-mode .form-submit-section,
+        .pdf-mode .preview-actions, .pdf-mode nav,
+        .pdf-mode header, .pdf-mode .screen-only {
           display: none !important;
         }
-        /* Thinner, cleaner borders for inputs */
-        input, textarea, select {
-          border: none !important;
-          border-bottom: 1px solid #000000 !important;
-          font-weight: 600 !important;
-          padding-bottom: 2px !important;
-        }
-        /* Better spacing between fields */
-        .form-field-group {
-          margin-bottom: 10px !important;
-        }
-        /* Labels formatting */
-        .form-label {
-          font-size: 11px !important;
-          font-weight: bold !important;
-          text-transform: uppercase !important;
-          letter-spacing: 0.5px !important;
-          margin-bottom: 2px !important;
-        }
-        ::placeholder {
-          /* Hide placeholders in print */
+        .pdf-mode ::placeholder {
           color: transparent !important;
           opacity: 0 !important;
         }
@@ -99,7 +95,7 @@ export default function EditableForm({ data, serviceId }) {
         useCORS: true,
         backgroundColor: "#ffffff",
         scrollY: -window.scrollY,
-        windowWidth: 800,
+        windowWidth: 850,
         logging: false,
       });
 
@@ -108,7 +104,7 @@ export default function EditableForm({ data, serviceId }) {
       const pdf = new jsPDF("p", "mm", "a4");
       const pageWidth = 210;
       const pageHeight = 297;
-      const margin = 10;
+      const margin = 8;
 
       const imgWidth = pageWidth - margin * 2;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
@@ -126,9 +122,10 @@ export default function EditableForm({ data, serviceId }) {
         heightLeft -= pageHeight - margin * 2;
       }
 
-      pdf.save(`GOI_${serviceId}_${Date.now()}.pdf`);
+      pdf.save(`GOI_${serviceName.replace(/\s+/g, "_")}_${Date.now()}.pdf`);
 
       element.classList.remove("pdf-mode");
+      document.head.removeChild(style);
       btn.textContent = oldText;
       btn.disabled = false;
     } catch (err) {
@@ -138,51 +135,177 @@ export default function EditableForm({ data, serviceId }) {
     }
   };
 
+  const renderField = (label, key, options = {}) => {
+    const { type = "text", half = false, placeholder = "" } = options;
+
+    if (type === "select") {
+      return (
+        <div className={`govt-field ${half ? "half" : ""}`} key={key}>
+          <label className="govt-field-label">{label}</label>
+          <select
+            className="govt-field-input"
+            value={formData[key] || ""}
+            onChange={(e) => handleChange(key, e.target.value)}
+            disabled={previewMode}
+          >
+            <option value="">— Select —</option>
+            {options.choices?.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+      );
+    }
+
+    return (
+      <div className={`govt-field ${half ? "half" : ""}`} key={key}>
+        <label className="govt-field-label">{label}</label>
+        <input
+          type={type}
+          className="govt-field-input"
+          value={formData[key] || ""}
+          onChange={(e) => handleChange(key, e.target.value)}
+          readOnly={previewMode}
+          placeholder={placeholder}
+        />
+      </div>
+    );
+  };
+
   return (
     <div className="editable-form-container">
-      <div className={`form-box ${previewMode ? "preview-mode" : ""}`}>
+      <div className={`govt-form ${previewMode ? "preview-mode" : ""}`}>
 
-        <div className="govt-header" style={{ textAlign: 'center', padding: '10px 0', borderBottom: '2px double #000', marginBottom: '15px' }}>
-          <h1 style={{ fontSize: '18px', fontWeight: 'bold', color: '#000', margin: '3px 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            GOVERNMENT OF INDIA
-          </h1>
-          <h3 style={{ fontSize: '12px', fontWeight: '600', color: '#000', margin: '2px 0' }}>
-            Application Form
-          </h3>
+        {/* ═══════════ OFFICIAL HEADER ═══════════ */}
+        <div className="govt-form-header">
+          <div className="govt-emblem">
+            {/* Ashoka Lion Capital — text emblem for PDF compatibility */}
+            <div className="emblem-icon">🏛️</div>
+            <div className="emblem-text-block">
+              <div className="emblem-hindi">भारत सरकार</div>
+              <div className="emblem-title">GOVERNMENT OF INDIA</div>
+              <div className="emblem-dept">MINISTRY OF ELECTRONICS & INFORMATION TECHNOLOGY</div>
+              <div className="emblem-subtitle">SEVA FORM AI — e-Application Portal</div>
+            </div>
+          </div>
+
+          <div className="form-meta-strip">
+            <div className="form-meta-item">
+              <span className="meta-label">FORM TYPE</span>
+              <span className="meta-value">{serviceName}</span>
+            </div>
+            <div className="form-meta-item">
+              <span className="meta-label">APPLICATION NO.</span>
+              <span className="meta-value">{formNumber}</span>
+            </div>
+            <div className="form-meta-item">
+              <span className="meta-label">DATE</span>
+              <span className="meta-value">{formDate}</span>
+            </div>
+          </div>
         </div>
 
-        <h3 className="form-title screen-only">
-          {previewMode ? "Review Application" : "Auto-Filled Editable Form"}
+        {/* screen-only title */}
+        <h3 className="screen-only form-mode-title">
+          {previewMode ? "📋 Review & Download Application" : "✏️ Auto-Filled Application — Edit if needed"}
         </h3>
 
-        <div className="form-fields">
-          {[
-            ["Full Name", "name"],
-            ["Father Name", "father_name"],
-            ["DOB", "dob"],
-            ["Gender", "gender"],
-            ["Aadhaar", "aadhaar"],
-            ["PAN", "pan"],
-            ["Mobile", "mobile"],
-            ["Address", "address"],
-            ["Village / City", "village"],
-            ["District", "district"],
-            ["State", "state"],
-            ["Pincode", "pincode"],
-            ["Permanent Address", "permanent_address"],
-          ].map(([label, key]) => (
-            <div className="form-field-group" key={key}>
-              <label className="form-label">{label}</label>
-              <input
-                className="form-input"
-                value={formData[key] || ""}
-                onChange={(e) => handleChange(key, e.target.value)}
-                readOnly={previewMode}
-              />
-            </div>
-          ))}
+        {/* ═══════════ SECTION 1: Personal Details ═══════════ */}
+        <div className="govt-section">
+          <div className="govt-section-header">
+            <span className="section-number">1</span>
+            <span className="section-title">PERSONAL DETAILS / व्यक्तिगत विवरण</span>
+          </div>
+          <div className="govt-field-grid">
+            {renderField("Full Name (पूरा नाम)", "name", { placeholder: "As per Aadhaar" })}
+            {renderField("Date of Birth (जन्म तिथि)", "dob", { half: true, type: "text", placeholder: "DD/MM/YYYY" })}
+            {renderField("Gender (लिंग)", "gender", { half: true, type: "select", choices: ["Male", "Female", "Other"] })}
+            {renderField("Father's Name (पिता का नाम)", "father_name")}
+            {renderField("Mother's Name (माता का नाम)", "mother_name")}
+            {renderField("Marital Status (वैवाहिक स्थिति)", "marital_status", { half: true, type: "select", choices: ["Single", "Married", "Widowed", "Divorced"] })}
+            {renderField("Caste / Category (जाति / श्रेणी)", "caste", { half: true, placeholder: "SC / ST / OBC / General" })}
+          </div>
         </div>
 
+        {/* ═══════════ SECTION 2: Identity Documents ═══════════ */}
+        <div className="govt-section">
+          <div className="govt-section-header">
+            <span className="section-number">2</span>
+            <span className="section-title">IDENTITY DOCUMENTS / पहचान दस्तावेज</span>
+          </div>
+          <div className="govt-field-grid">
+            {renderField("Aadhaar Number (आधार संख्या)", "aadhaar", { half: true, placeholder: "XXXX XXXX XXXX" })}
+            {renderField("PAN Number (पैन संख्या)", "pan", { half: true, placeholder: "XXXXX0000X" })}
+            {renderField("Mobile Number (मोबाइल नंबर)", "mobile", { half: true, type: "tel", placeholder: "+91 XXXXXXXXXX" })}
+            {renderField("Email (ईमेल)", "email", { half: true, type: "email", placeholder: "example@mail.com" })}
+          </div>
+        </div>
+
+        {/* ═══════════ SECTION 3: Address Details ═══════════ */}
+        <div className="govt-section">
+          <div className="govt-section-header">
+            <span className="section-number">3</span>
+            <span className="section-title">ADDRESS DETAILS / पता विवरण</span>
+          </div>
+          <div className="govt-field-grid">
+            {renderField("Present Address (वर्तमान पता)", "address", { placeholder: "House No., Street, Locality" })}
+            {renderField("Village / Town / City (गाँव / नगर)", "village", { half: true })}
+            {renderField("Taluka / Tehsil (तालुका / तहसील)", "taluka", { half: true })}
+            {renderField("District (जिला)", "district", { half: true })}
+            {renderField("State (राज्य)", "state", { half: true })}
+            {renderField("PIN Code (पिन कोड)", "pincode", { half: true, placeholder: "6-digit PIN" })}
+            {renderField("Permanent Address (स्थायी पता)", "permanent_address", { placeholder: "Same as above if applicable" })}
+          </div>
+        </div>
+
+        {/* ═══════════ SECTION 4: Declaration ═══════════ */}
+        <div className="govt-section declaration-section">
+          <div className="govt-section-header">
+            <span className="section-number">4</span>
+            <span className="section-title">DECLARATION / घोषणा</span>
+          </div>
+          <div className="declaration-content">
+            <p>
+              I hereby declare that all the information furnished above is true, complete, and correct
+              to the best of my knowledge and belief. I understand that in the event of any information
+              being found false or incorrect, my application shall be liable for rejection and appropriate
+              action may be initiated against me as per the provisions of law.
+            </p>
+            <p className="declaration-hindi">
+              मैं एतद्द्वारा घोषणा करता/करती हूँ कि ऊपर दी गई समस्त जानकारी मेरी जानकारी और विश्वास
+              के अनुसार सत्य, पूर्ण और सही है।
+            </p>
+            <div className="signature-block">
+              <div className="sig-item">
+                <div className="sig-line"></div>
+                <span>Place / स्थान</span>
+              </div>
+              <div className="sig-item">
+                <div className="sig-line"></div>
+                <span>Date / दिनांक</span>
+              </div>
+              <div className="sig-item">
+                <div className="sig-line"></div>
+                <span>Signature of Applicant / आवेदक के हस्ताक्षर</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══════════ FORM FOOTER ═══════════ */}
+        <div className="govt-form-footer">
+          <div className="footer-left">
+            <span>Ref: {formNumber}</span>
+          </div>
+          <div className="footer-center">
+            <span>This is a computer-generated document from the Seva Form AI Portal</span>
+          </div>
+          <div className="footer-right">
+            <span>Page 1 of 1</span>
+          </div>
+        </div>
+
+        {/* ═══════════ ACTIONS ═══════════ */}
         <div className="form-submit-section">
           {!previewMode ? (
             <button className="btn-submit-form" onClick={handleSubmit}>
@@ -191,7 +314,7 @@ export default function EditableForm({ data, serviceId }) {
           ) : (
             <div className="preview-actions">
               <button className="btn-edit" onClick={() => setPreviewMode(false)}>
-                ✏️ Edit
+                ✏️ Edit Form
               </button>
               <button className="btn-confirm" onClick={handleSubmit}>
                 📥 Download PDF
@@ -199,16 +322,6 @@ export default function EditableForm({ data, serviceId }) {
             </div>
           )}
         </div>
-      </div>
-
-
-      <div className="govt-footer">
-        <p>
-          I hereby declare that the information provided above is true and
-          correct.
-        </p>
-        <div className="signature-line"></div>
-        <p>Signature of Applicant</p>
       </div>
     </div>
   );
