@@ -13,6 +13,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Chat from "./pages/Chat";
 import FormPage from "./pages/FormPage";
+import NearbyKendra from "./pages/NearbyKendra";
 export default function App() {
   return (
     <Routes>
@@ -29,6 +30,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/chat" element={<Chat />} />
+      <Route path="/nearby" element={<NearbyKendra />} />
     </Routes>
   );
 }
